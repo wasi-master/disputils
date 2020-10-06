@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 import asyncio
 from copy import deepcopy
-from typing import List, Tuple
+from typing import List, Tuple, Union
 from .abc import Dialog
 
 
@@ -40,14 +40,14 @@ class EmbedPaginator(Dialog):
                     page.set_footer(icon_url=page.footer.icon_url, text=f"{page.footer.text} - ({pages.index(page)+1}/{len(pages)})")
         return pages
 
-    async def run(self, users: List[discord.User], channel: discord.TextChannel = None):
+    async def run(self, users: Union[List[discord.User], discord.User], channel: discord.TextChannel = None):
         """
         Runs the paginator.
 
-        :type users: List[discord.User]
+        :type users: Union[List[discord.User], discord.Member]
         :param users:
-            A list of :class:`discord.User` that can control the pagination.
-            Passing an empty list will grant access to all users. (Not recommended.)
+            A list of :class:`discord.User` or a single `discord.User` that can control the pagination.
+            Passing an empty list or will grant access to all users. (Not recommended.)
 
         :type channel: Optional[discord.TextChannel]
         :param channel:
@@ -87,8 +87,15 @@ class EmbedPaginator(Dialog):
                 reaction, user = await self._client.wait_for('reaction_add', check=check, timeout=100)
             except asyncio.TimeoutError:
                 if not isinstance(channel, discord.channel.DMChannel) and not isinstance(channel, discord.channel.GroupChannel):
-                    await self.message.clear_reactions()
-                return
+                    try:
+                        await self.message.clear_reactions()
+                    except discord.Forbidden:
+                        for reaction in self.message.reactions:
+                            try:
+                                await message.remove_reaction(reaction.emoji, self._client.user)
+                            except:
+                                pass
+        return
 
             emoji = reaction.emoji
             max_index = len(self.pages) - 1  # index for the last page
